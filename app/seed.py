@@ -19,6 +19,14 @@ VENUES = [
 ]
 
 CREATE_TABLES = """
+CREATE TABLE IF NOT EXISTS users (
+    id            TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+    name          TEXT NOT NULL,
+    email         TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS venues (
     id          TEXT PRIMARY KEY,
     name        TEXT NOT NULL,
@@ -64,12 +72,23 @@ async def seed():
     print("Creating tables...")
     await conn.execute(CREATE_TABLES)
 
+    print("Removing old venues not in current list...")
+    current_ids = [v["id"] for v in VENUES]
+    await conn.execute(
+        "DELETE FROM venues WHERE id != ALL($1::text[])", current_ids
+    )
+
     print("Seeding venues...")
     for v in VENUES:
         await conn.execute("""
             INSERT INTO venues (id, name, address, sport, image_url, price_per_hour)
             VALUES ($1, $2, $3, $4, $5, $6)
-            ON CONFLICT (id) DO NOTHING
+            ON CONFLICT (id) DO UPDATE SET
+                name = EXCLUDED.name,
+                address = EXCLUDED.address,
+                sport = EXCLUDED.sport,
+                image_url = EXCLUDED.image_url,
+                price_per_hour = EXCLUDED.price_per_hour
         """, v["id"], v["name"], v["address"], v["sport"], v["image_url"], v["price_per_hour"])
 
     print("Seeding slots for next 14 days...")

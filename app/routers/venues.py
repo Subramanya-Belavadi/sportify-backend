@@ -1,3 +1,4 @@
+from datetime import date
 from fastapi import APIRouter, HTTPException, Query
 from app.database import get_pool
 from app.models import Venue, Slot
@@ -19,7 +20,7 @@ async def list_venues():
 @router.get("/{venue_id}/slots", response_model=list[Slot])
 async def get_slots(
     venue_id: str,
-    date: str = Query(..., description="Format: YYYY-MM-DD"),
+    date_str: str = Query(..., alias="date", description="Format: YYYY-MM-DD"),
 ):
     pool = get_pool()
 
@@ -30,8 +31,8 @@ async def get_slots(
     rows = await pool.fetch("""
         SELECT id, venue_id, date::TEXT, start_time::TEXT, end_time::TEXT, status, booked_by
         FROM slots
-        WHERE venue_id = $1 AND date = $2::DATE
+        WHERE venue_id = $1 AND date = $2
         ORDER BY start_time
-    """, venue_id, date)
+    """, venue_id, date.fromisoformat(date_str))
 
     return [dict(r) for r in rows]

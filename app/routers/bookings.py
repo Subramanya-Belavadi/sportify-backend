@@ -1,31 +1,27 @@
+from datetime import date, time
 from fastapi import APIRouter, HTTPException, Header
 from app.database import get_pool
 from app.models import BookingRequest, Booking
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
-VALID_USERS = {"user_1", "user_2", "user_3"}
+
+async def _validate_user(x_user_id: str, pool) -> None:
+    user = await pool.fetchrow("SELECT id FROM users WHERE id = $1", x_user_id)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid user")
 
 
 @router.post("", response_model=Booking, status_code=201)
 async def book_slot(
     body: BookingRequest,
-    x_user_id: str = Header(..., description="Hardcoded user ID"),
+    x_user_id: str = Header(..., description="User ID from login"),
 ):
-    if x_user_id not in VALID_USERS:
-        raise HTTPException(status_code=401, detail="Invalid user")
-
-    if body.user_id != x_user_id:
-        raise HTTPException(status_code=403, detail="User ID mismatch")
-
     pool = get_pool()
+    await _validate_user(x_user_id, pool)
 
     async with pool.acquire() as conn:
         async with conn.transaction():
-            # Atomic UPDATE — this is the concurrency-safe booking pattern.
-            # Only one transaction can update a row at a time in PostgreSQL.
-            # If two requests arrive simultaneously, one wins and the other
-            # finds 0 rows updated (status is already 'booked').
             updated = await conn.fetchrow("""
                 UPDATE slots
                 SET status = 'booked', booked_by = $1
@@ -34,7 +30,6 @@ async def book_slot(
             """, x_user_id, body.slot_id)
 
             if not updated:
-                # Either slot doesn't exist or already booked
                 slot = await conn.fetchrow(
                     "SELECT id FROM slots WHERE id = $1", body.slot_id
                 )
@@ -59,9 +54,9 @@ async def book_slot(
                 updated["id"],
                 updated["venue_id"],
                 venue["name"],
-                updated["date"],
-                updated["start_time"],
-                updated["end_time"],
+                date.fromisoformat(updated["date"]),
+                time.fromisoformat(updated["start_time"]),
+                time.fromisoformat(updated["end_time"]),
             )
 
     return dict(booking)
@@ -72,10 +67,8 @@ async def cancel_booking(
     booking_id: str,
     x_user_id: str = Header(...),
 ):
-    if x_user_id not in VALID_USERS:
-        raise HTTPException(status_code=401, detail="Invalid user")
-
     pool = get_pool()
+    await _validate_user(x_user_id, pool)
 
     async with pool.acquire() as conn:
         async with conn.transaction():
