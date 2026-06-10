@@ -1,71 +1,135 @@
 """
-Run once to seed the database:
+Run once to create tables and seed data:
   python -m app.seed
 """
 import asyncio
 import asyncpg
 import os
+import uuid
+from datetime import date, time, timedelta
 from dotenv import load_dotenv
 
 load_dotenv()
 
 VENUES = [
-    {"id": "v1", "name": "Smash Arena", "address": "Koramangala, Bangalore", "sport": "Badminton", "image_url": "", "price_per_hour": 400},
-    {"id": "v2", "name": "Green Turf", "address": "Whitefield, Bangalore", "sport": "Football", "image_url": "", "price_per_hour": 800},
-    {"id": "v3", "name": "Court Kings", "address": "Indiranagar, Bangalore", "sport": "Badminton", "image_url": "", "price_per_hour": 350},
-    {"id": "v4", "name": "Goal Zone", "address": "HSR Layout, Bangalore", "sport": "Football", "image_url": "", "price_per_hour": 700},
-    {"id": "v5", "name": "Rally Club", "address": "JP Nagar, Bangalore", "sport": "Badminton", "image_url": "", "price_per_hour": 300},
+    {"id": "v1", "name": "Smash Arena", "address": "Koramangala, Bangalore", "sport": "Badminton", "image_url": "assets/images/badminton-court.jpg", "price_per_hour": 400},
+    {"id": "v2", "name": "Green Turf", "address": "Whitefield, Bangalore", "sport": "Football", "image_url": "assets/images/football-court.jpg", "price_per_hour": 800},
+    {"id": "v3", "name": "Box Cricket Hub", "address": "Electronic City, Bangalore", "sport": "Box Cricket", "image_url": "assets/images/cricket-court.jpg", "price_per_hour": 1200},
+    {"id": "v4", "name": "Pickle House", "address": "Marathahalli, Bangalore", "sport": "Pickleball", "image_url": "assets/images/pickleball-court.jpg", "price_per_hour": 500},
+    {"id": "v5", "name": "Rally Court", "address": "Indiranagar, Bangalore", "sport": "Badminton", "image_url": "assets/images/badminton-court-2.jpg", "price_per_hour": 450},
+    {"id": "v6", "name": "Dink Zone", "address": "HSR Layout, Bangalore", "sport": "Pickleball", "image_url": "assets/images/pickleball-court-2.jpeg", "price_per_hour": 550},
 ]
 
+MIGRATE_SLOTS = """
+ALTER TABLE slots ADD COLUMN IF NOT EXISTS reserved_by TEXT;
+ALTER TABLE slots ADD COLUMN IF NOT EXISTS reserved_until TIMESTAMPTZ;
+ALTER TABLE slots DROP CONSTRAINT IF EXISTS slots_status_check;
+ALTER TABLE slots ADD CONSTRAINT slots_status_check
+    CHECK (status IN ('available', 'booked', 'reserved'));
+"""
+
 CREATE_TABLES = """
+CREATE TABLE IF NOT EXISTS users (
+    id            TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+    name          TEXT NOT NULL,
+    email         TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS venues (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    address TEXT NOT NULL,
-    sport TEXT NOT NULL,
-    image_url TEXT DEFAULT '',
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    address     TEXT NOT NULL,
+    sport       TEXT NOT NULL,
+    image_url   TEXT DEFAULT '',
     price_per_hour NUMERIC NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS slots (
-    id TEXT PRIMARY KEY,
-    venue_id TEXT NOT NULL REFERENCES venues(id),
-    date DATE NOT NULL,
-    start_time TIME NOT NULL,
-    end_time TIME NOT NULL,
-    status TEXT NOT NULL DEFAULT 'available',
-    booked_by TEXT
+    id          TEXT PRIMARY KEY,
+    venue_id    TEXT NOT NULL REFERENCES venues(id) ON DELETE CASCADE,
+    date        DATE NOT NULL,
+    start_time  TIME NOT NULL,
+    end_time    TIME NOT NULL,
+    status      TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'booked', 'reserved')),
+    booked_by   TEXT,
+    CONSTRAINT unique_venue_slot UNIQUE (venue_id, date, start_time)
 );
 
-CREATE TABLE IF NOT EXISTS bookings (
-    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-    user_id TEXT NOT NULL,
-    slot_id TEXT NOT NULL REFERENCES slots(id),
-    venue_id TEXT NOT NULL,
-    venue_name TEXT NOT NULL,
-    date DATE NOT NULL,
-    start_time TIME NOT NULL,
-    end_time TIME NOT NULL,
-    status TEXT NOT NULL DEFAULT 'confirmed',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+DROP TABLE IF EXISTS bookings CASCADE;
+CREATE TABLE bookings (
+    id             TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+    user_id        TEXT NOT NULL,
+    first_slot_id  TEXT NOT NULL,
+    venue_id       TEXT NOT NULL,
+    venue_name     TEXT NOT NULL,
+    date           DATE NOT NULL,
+    start_time     TIME NOT NULL,
+    end_time       TIME NOT NULL,
+    duration_hours INT NOT NULL DEFAULT 1,
+    base_amount    NUMERIC NOT NULL,
+    gst_amount     NUMERIC NOT NULL,
+    total_amount   NUMERIC NOT NULL,
+    status         TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'cancelled')),
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 """
+
+# Slots: 6 AM to 10 PM, 1 hour each = 16 slots per venue per day
+SLOT_HOURS = range(6, 22)
 
 
 async def seed():
     conn = await asyncpg.connect(dsn=os.getenv("DATABASE_URL"))
-    await conn.execute(CREATE_TABLES)
 
+    print("Creating tables...")
+    await conn.execute(CREATE_TABLES)
+    print("Migrating slots table...")
+    await conn.execute(MIGRATE_SLOTS)
+
+    print("Removing old venues not in current list...")
+    current_ids = [v["id"] for v in VENUES]
+    await conn.execute(
+        "DELETE FROM venues WHERE id != ALL($1::text[])", current_ids
+    )
+
+    print("Seeding venues...")
     for v in VENUES:
         await conn.execute("""
             INSERT INTO venues (id, name, address, sport, image_url, price_per_hour)
-            VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (id) DO UPDATE SET
+                name = EXCLUDED.name,
+                address = EXCLUDED.address,
+                sport = EXCLUDED.sport,
+                image_url = EXCLUDED.image_url,
+                price_per_hour = EXCLUDED.price_per_hour
         """, v["id"], v["name"], v["address"], v["sport"], v["image_url"], v["price_per_hour"])
 
-    # TODO: seed slots for each venue — 6AM to 10PM hourly for next 7 days
+    print("Seeding slots for next 14 days...")
+    today = date.today()
+    records = []
+    for day_offset in range(14):
+        slot_date = today + timedelta(days=day_offset)
+        for venue in VENUES:
+            for hour in SLOT_HOURS:
+                records.append((
+                    f"{venue['id']}_{slot_date}_{hour:02d}",
+                    venue["id"],
+                    slot_date,
+                    time(hour, 0),
+                    time(hour + 1, 0),
+                ))
+
+    await conn.executemany("""
+        INSERT INTO slots (id, venue_id, date, start_time, end_time, status)
+        VALUES ($1, $2, $3, $4, $5, 'available')
+        ON CONFLICT DO NOTHING
+    """, records)
 
     await conn.close()
-    print("Seeded successfully.")
+    print("Done. Database seeded successfully.")
 
 
 if __name__ == "__main__":
