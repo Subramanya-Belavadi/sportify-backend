@@ -42,20 +42,28 @@ class AuthResponse(BaseModel):
     email: str
 
 
+GST_RATE = 0.18
+
+
 class BookingRequest(BaseModel):
     slot_id: str
     user_id: str
+    duration_hours: int = 1
 
 
 class Booking(BaseModel):
     id: str
     user_id: str
-    slot_id: str
+    slot_id: str       # first_slot_id aliased for Flutter compatibility
     venue_id: str
     venue_name: str
     date: str
     start_time: str
     end_time: str
+    duration_hours: int
+    base_amount: float
+    gst_amount: float
+    total_amount: float
     status: str
     created_at: str
 

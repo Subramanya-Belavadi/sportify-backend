@@ -47,18 +47,22 @@ CREATE TABLE IF NOT EXISTS slots (
     CONSTRAINT unique_venue_slot UNIQUE (venue_id, date, start_time)
 );
 
-CREATE TABLE IF NOT EXISTS bookings (
-    id          TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-    user_id     TEXT NOT NULL,
-    slot_id     TEXT NOT NULL REFERENCES slots(id) ON DELETE CASCADE,
-    venue_id    TEXT NOT NULL,
-    venue_name  TEXT NOT NULL,
-    date        DATE NOT NULL,
-    start_time  TIME NOT NULL,
-    end_time    TIME NOT NULL,
-    status      TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'cancelled')),
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT unique_active_booking UNIQUE (slot_id)
+DROP TABLE IF EXISTS bookings CASCADE;
+CREATE TABLE bookings (
+    id             TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+    user_id        TEXT NOT NULL,
+    first_slot_id  TEXT NOT NULL,
+    venue_id       TEXT NOT NULL,
+    venue_name     TEXT NOT NULL,
+    date           DATE NOT NULL,
+    start_time     TIME NOT NULL,
+    end_time       TIME NOT NULL,
+    duration_hours INT NOT NULL DEFAULT 1,
+    base_amount    NUMERIC NOT NULL,
+    gst_amount     NUMERIC NOT NULL,
+    total_amount   NUMERIC NOT NULL,
+    status         TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'cancelled')),
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 """
 
