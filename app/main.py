@@ -1,12 +1,19 @@
+import logging
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from app.database import connect_db, disconnect_db
 from app.routers import venues, bookings, users, auth
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await connect_db()
+    try:
+        await connect_db()
+    except Exception:
+        logger.exception("Failed to connect to database during startup")
+        raise
     yield
     await disconnect_db()
 

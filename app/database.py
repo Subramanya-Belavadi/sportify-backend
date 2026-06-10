@@ -9,7 +9,9 @@ pool: asyncpg.Pool | None = None
 
 async def connect_db():
     global pool
-    pool = await asyncpg.create_pool(dsn=os.getenv("DATABASE_URL"), min_size=2, max_size=10)
+    dsn = os.getenv("DATABASE_URL")
+    ssl = "require" if os.getenv("RAILWAY_ENVIRONMENT") else None
+    pool = await asyncpg.create_pool(dsn=dsn, min_size=2, max_size=10, ssl=ssl)
 
 
 async def disconnect_db():
