@@ -16,7 +16,14 @@ VENUES = [
     {"id": "v2", "name": "Green Turf", "address": "Whitefield, Bangalore", "sport": "Football", "image_url": "assets/images/football-court.jpg", "price_per_hour": 800},
     {"id": "v3", "name": "Box Cricket Hub", "address": "Electronic City, Bangalore", "sport": "Box Cricket", "image_url": "assets/images/cricket-court.jpg", "price_per_hour": 1200},
     {"id": "v4", "name": "Pickle House", "address": "Marathahalli, Bangalore", "sport": "Pickleball", "image_url": "assets/images/pickleball-court.jpg", "price_per_hour": 500},
+    {"id": "v5", "name": "Rally Court", "address": "Indiranagar, Bangalore", "sport": "Badminton", "image_url": "assets/images/badminton-court-2.jpg", "price_per_hour": 450},
+    {"id": "v6", "name": "Dink Zone", "address": "HSR Layout, Bangalore", "sport": "Pickleball", "image_url": "assets/images/pickleball-court-2.jpeg", "price_per_hour": 550},
 ]
+
+MIGRATE_SLOTS = """
+ALTER TABLE slots ADD COLUMN IF NOT EXISTS reserved_by TEXT;
+ALTER TABLE slots ADD COLUMN IF NOT EXISTS reserved_until TIMESTAMPTZ;
+"""
 
 CREATE_TABLES = """
 CREATE TABLE IF NOT EXISTS users (
@@ -75,6 +82,8 @@ async def seed():
 
     print("Creating tables...")
     await conn.execute(CREATE_TABLES)
+    print("Migrating slots table...")
+    await conn.execute(MIGRATE_SLOTS)
 
     print("Removing old venues not in current list...")
     current_ids = [v["id"] for v in VENUES]

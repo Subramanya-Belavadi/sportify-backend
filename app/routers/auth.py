@@ -7,6 +7,7 @@ from app.models import UserCreate, UserLogin, AuthResponse
 router = APIRouter(prefix="/auth", tags=["auth"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
+PASSWORD_REGEX = re.compile(r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$')
 
 
 @router.post("/signup", response_model=AuthResponse, status_code=201)
@@ -17,8 +18,8 @@ async def signup(body: UserCreate):
         raise HTTPException(status_code=422, detail="All fields are required")
     if not EMAIL_REGEX.match(email):
         raise HTTPException(status_code=422, detail="Enter a valid email address")
-    if len(body.password) < 6:
-        raise HTTPException(status_code=422, detail="Password must be at least 6 characters")
+    if not PASSWORD_REGEX.match(body.password):
+        raise HTTPException(status_code=422, detail="Password must be at least 8 characters with letters, numbers, and a symbol")
     existing = await pool.fetchrow("SELECT id FROM users WHERE email = $1", email)
     if existing:
         raise HTTPException(status_code=409, detail="Email already registered")

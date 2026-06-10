@@ -37,12 +37,38 @@ async def book_slot(
 
     slot_ids = [_make_slot_id(body.slot_id, i) for i in range(body.duration_hours)]
 
+    # Derive start/end time from slot_id to check for user overlap
+    base_hour = _parse_slot_hour(body.slot_id)
+    requested_start = time(base_hour, 0)
+    requested_end = time(base_hour + body.duration_hours, 0)
+    slot_date_str = body.slot_id.rsplit("_", 2)[1]  # venueId_YYYY-MM-DD_HH
+    requested_date = date.fromisoformat(slot_date_str)
+
     async with pool.acquire() as conn:
         async with conn.transaction():
-            # Atomically book all consecutive slots
+            # Reject if user already has a confirmed booking that overlaps this time window
+            conflict = await conn.fetchval("""
+                SELECT COUNT(*) FROM bookings
+                WHERE user_id = $1
+                  AND date = $2
+                  AND status = 'confirmed'
+                  AND start_time < $4
+                  AND end_time > $3
+            """, x_user_id, requested_date, requested_start, requested_end)
+
+            if conflict > 0:
+                raise HTTPException(
+                    status_code=409,
+                    detail="You already have a booking that overlaps this time slot"
+                )
+
+            # Atomically book all consecutive slots (available OR reserved by same user)
             updated = await conn.fetch("""
-                UPDATE slots SET status = 'booked', booked_by = $1
-                WHERE id = ANY($2::text[]) AND status = 'available'
+                UPDATE slots SET status = 'booked', booked_by = $1,
+                                 reserved_by = NULL, reserved_until = NULL
+                WHERE id = ANY($2::text[])
+                  AND (status = 'available'
+                       OR (status = 'reserved' AND reserved_by = $1))
                 RETURNING id, venue_id, date::TEXT, start_time::TEXT, end_time::TEXT
             """, x_user_id, slot_ids)
 
