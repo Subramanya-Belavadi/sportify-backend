@@ -12,15 +12,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 VENUES = [
-    {"id": "v1", "name": "Smash Arena", "address": "Koramangala, Bangalore", "sport": "Badminton", "image_url": "", "price_per_hour": 400},
-    {"id": "v2", "name": "Green Turf", "address": "Whitefield, Bangalore", "sport": "Football", "image_url": "", "price_per_hour": 800},
-    {"id": "v3", "name": "Court Kings", "address": "Indiranagar, Bangalore", "sport": "Badminton", "image_url": "", "price_per_hour": 350},
-    {"id": "v4", "name": "Goal Zone", "address": "HSR Layout, Bangalore", "sport": "Football", "image_url": "", "price_per_hour": 700},
-    {"id": "v5", "name": "Rally Club", "address": "JP Nagar, Bangalore", "sport": "Badminton", "image_url": "", "price_per_hour": 300},
-    {"id": "v6", "name": "Box Cricket Hub", "address": "Electronic City, Bangalore", "sport": "Box Cricket", "image_url": "", "price_per_hour": 1200},
-    {"id": "v7", "name": "Cricket Cage", "address": "Sarjapur Road, Bangalore", "sport": "Box Cricket", "image_url": "", "price_per_hour": 1000},
-    {"id": "v8", "name": "Pickle House", "address": "Marathahalli, Bangalore", "sport": "Pickleball", "image_url": "", "price_per_hour": 500},
-    {"id": "v9", "name": "Dink & Drive", "address": "Bellandur, Bangalore", "sport": "Pickleball", "image_url": "", "price_per_hour": 450},
+    {"id": "v1", "name": "Smash Arena", "address": "Koramangala, Bangalore", "sport": "Badminton", "image_url": "assets/images/badminton-court.jpg", "price_per_hour": 400},
+    {"id": "v2", "name": "Green Turf", "address": "Whitefield, Bangalore", "sport": "Football", "image_url": "assets/images/football-court.jpg", "price_per_hour": 800},
+    {"id": "v3", "name": "Box Cricket Hub", "address": "Electronic City, Bangalore", "sport": "Box Cricket", "image_url": "assets/images/cricket-court.jpg", "price_per_hour": 1200},
+    {"id": "v4", "name": "Pickle House", "address": "Marathahalli, Bangalore", "sport": "Pickleball", "image_url": "assets/images/pickleball-court.jpg", "price_per_hour": 500},
 ]
 
 CREATE_TABLES = """
