@@ -23,6 +23,9 @@ VENUES = [
 MIGRATE_SLOTS = """
 ALTER TABLE slots ADD COLUMN IF NOT EXISTS reserved_by TEXT;
 ALTER TABLE slots ADD COLUMN IF NOT EXISTS reserved_until TIMESTAMPTZ;
+ALTER TABLE slots DROP CONSTRAINT IF EXISTS slots_status_check;
+ALTER TABLE slots ADD CONSTRAINT slots_status_check
+    CHECK (status IN ('available', 'booked', 'reserved'));
 """
 
 CREATE_TABLES = """
@@ -49,7 +52,7 @@ CREATE TABLE IF NOT EXISTS slots (
     date        DATE NOT NULL,
     start_time  TIME NOT NULL,
     end_time    TIME NOT NULL,
-    status      TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'booked')),
+    status      TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'booked', 'reserved')),
     booked_by   TEXT,
     CONSTRAINT unique_venue_slot UNIQUE (venue_id, date, start_time)
 );
