@@ -2,7 +2,6 @@ from pydantic import BaseModel
 from typing import Optional
 
 
-# --- Venue ---
 class Venue(BaseModel):
     id: str
     name: str
@@ -11,8 +10,9 @@ class Venue(BaseModel):
     image_url: Optional[str] = ""
     price_per_hour: float
 
+    model_config = {"from_attributes": True}
 
-# --- Slot ---
+
 class Slot(BaseModel):
     id: str
     venue_id: str
@@ -22,8 +22,9 @@ class Slot(BaseModel):
     status: str  # 'available' | 'booked'
     booked_by: Optional[str] = None
 
+    model_config = {"from_attributes": True}
 
-# --- Booking ---
+
 class BookingRequest(BaseModel):
     slot_id: str
     user_id: str
@@ -40,3 +41,5 @@ class Booking(BaseModel):
     end_time: str
     status: str
     created_at: str
+
+    model_config = {"from_attributes": True}

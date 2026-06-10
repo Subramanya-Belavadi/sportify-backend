@@ -11,7 +11,7 @@ async def lifespan(app: FastAPI):
     await disconnect_db()
 
 
-app = FastAPI(title="QuickSlot API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Sportify API", version="1.0.0", lifespan=lifespan)
 
 app.include_router(venues.router)
 app.include_router(bookings.router)
