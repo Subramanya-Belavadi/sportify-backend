@@ -81,7 +81,8 @@ SLOT_HOURS = range(6, 22)
 
 
 async def seed():
-    conn = await asyncpg.connect(dsn=os.getenv("DATABASE_URL"))
+    ssl = "require" if os.getenv("RAILWAY_ENVIRONMENT") else None
+    conn = await asyncpg.connect(dsn=os.getenv("DATABASE_URL"), ssl=ssl)
 
     print("Creating tables...")
     await conn.execute(CREATE_TABLES)
